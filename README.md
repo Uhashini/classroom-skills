@@ -1,73 +1,70 @@
-# React + TypeScript + Vite
+# Classroom Skills App
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A small React + TypeScript app that helps autism kids learn six core classroom behaviors through visual, step‑by‑step activities, practice timers, and simple rewards.
 
-Currently, two official plugins are available:
+The six skills covered are:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Raise Hand
+- Stay Seated
+- Take Turns
+- Line Up
+- Clean Desk
+- Transition Tasks
 
-## React Compiler
+Each skill always follows the same routine:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+1. Tutorial: 4 clear visual/text steps (5 seconds per step)
+2. Practice: 45‑second countdown timer
+3. Quiz: tap the correct step
+4. Reward: 1–5 stars with a small confetti animation
 
-## Expanding the ESLint configuration
+This predictable flow supports independence, reduces anxiety around transitions, and replaces long verbal explanations with visuals.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Features
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- Home screen grid with all 6 skills
+- Per‑skill flow: tutorial → practice → quiz → reward
+- Visual schedule chip (“First [skill], Then Reward”)
+- Weekly star progress per skill, stored in `localStorage`
+- Optional simple voice prompts using the browser Speech Synthesis API
+- Pure CSS styling and animations (no Tailwind, no Framer Motion)
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Technology Stack
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- React + TypeScript (created with Vite)
+- Styling: plain CSS in `src/index.css`
+- State management: React hooks (`useState`, `useEffect`, `useRef`, `useMemo`)
+- Browser APIs: `localStorage`, `speechSynthesis`
+- Tooling: Vite, TypeScript, ESLint
+
+## Getting Started
+
+Install dependencies:
+
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Run the dev server:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run dev
 ```
+
+Then open the URL shown in the terminal (usually `http://localhost:5173`).
+
+## Scripts
+
+- `npm run dev` – start Vite dev server
+- `npm run build` – type‑check and create production build
+- `npm run preview` – preview the production build
+- `npm run lint` – run ESLint over the project
+
+## Project Structure
+
+- `src/main.tsx` – React entry point, renders the app into `#root`
+- `src/App.tsx` – main UI and logic:
+  - defines the six skills and their steps
+  - manages phases (home, tutorial, practice, quiz, reward)
+  - handles timer, quiz, rewards, and weekly progress
+- `src/index.css` – base layout, cards, timer, stars, confetti, and other styling
