@@ -62,8 +62,8 @@ Then open the URL shown in the terminal (usually `http://localhost:5173`).
 
 ## Project Structure
 
-- `src/main.tsx` – React entry point, renders the app into `#root`
-- `src/App.tsx` – main UI and logic:
+- `src/main.jsx` – React entry point, renders the app into `#root`
+- `src/App.jsx` – main UI and logic:
   - defines the six skills and their steps
   - manages phases (home, tutorial, practice, quiz, reward)
   - handles timer, quiz, rewards, and weekly progress

@@ -1,30 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import './index.css'
 
-type SkillKey =
-  | 'raiseHand'
-  | 'staySeated'
-  | 'takeTurns'
-  | 'lineUp'
-  | 'cleanDesk'
-  | 'transitionTasks'
-
-type Activity = {
-  key: SkillKey
-  title: string
-  why: string
-  steps: string[]
-}
-
-type Phase = 'home' | 'tutorial' | 'practice' | 'quiz' | 'reward'
-
-type Progress = {
-  [week: string]: {
-    [key in SkillKey]?: number
-  }
-}
-
-const activities: Activity[] = [
+const activities = [
   {
     key: 'raiseHand',
     title: 'Raise Hand',
@@ -72,7 +49,7 @@ function getWeekKey(date = new Date()) {
   return `${dt.getUTCFullYear()}-W${String(week).padStart(2, '0')}`
 }
 
-function speak(text: string) {
+function speak(text) {
   try {
     const utter = new SpeechSynthesisUtterance(text)
     utter.rate = 1
@@ -83,21 +60,25 @@ function speak(text: string) {
 }
 
 export default function App() {
-  const [phase, setPhase] = useState<Phase>('home')
-  const [selected, setSelected] = useState<Activity | null>(null)
+  // useState: store values that can change on screen
+  const [phase, setPhase] = useState('home')
+  const [selected, setSelected] = useState(null)
   const [tutorialStep, setTutorialStep] = useState(0)
   const [timerSec, setTimerSec] = useState(45)
   const [quizTargetStep, setQuizTargetStep] = useState(2)
-  const [quizChoices, setQuizChoices] = useState<string[]>([])
+  const [quizPromptStep, setQuizPromptStep] = useState(1)
+  const [quizChoices, setQuizChoices] = useState([])
+  const [lastAnswerCorrect, setLastAnswerCorrect] = useState(null)
   const [stars, setStars] = useState(0)
-  const [progress, setProgress] = useState<Progress>({})
+  const [progress, setProgress] = useState({})
   const [soundOn, setSoundOn] = useState(true)
+  // useRef: keeps a value without re-rendering
   const practiceStartedRef = useRef(false)
+  // useMemo: compute once (week key shouldn’t change during session)
   const weekKey = useMemo(() => getWeekKey(), [])
-  const [confetti, setConfetti] = useState<{ left: string; delay: string; background: string }[]>(
-    []
-  )
+  const [confetti, setConfetti] = useState([])
 
+  // useEffect: run once to load saved progress
   useEffect(() => {
     try {
       const raw = localStorage.getItem('progress')
@@ -105,12 +86,14 @@ export default function App() {
     } catch { void 0 }
   }, [])
 
+  // useEffect: save progress any time it changes
   useEffect(() => {
     try {
       localStorage.setItem('progress', JSON.stringify(progress))
     } catch { void 0 }
   }, [progress])
 
+  // useEffect: tutorial auto-steps every 5 seconds, then go to practice
   useEffect(() => {
     if (phase !== 'tutorial') return
     if (!selected) return
@@ -129,6 +112,7 @@ export default function App() {
     return () => clearInterval(id)
   }, [phase, selected, soundOn])
 
+  // useEffect: show confetti only on reward screen
   useEffect(() => {
     if (phase === 'reward') {
       const colors = ['#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#a78bfa']
@@ -143,6 +127,7 @@ export default function App() {
     }
   }, [phase])
 
+  // useEffect: start 45s timer and move to quiz when it ends
   useEffect(() => {
     if (phase !== 'practice') return
     practiceStartedRef.current = true
@@ -163,33 +148,44 @@ export default function App() {
     return () => clearInterval(id)
   }, [phase, soundOn, selected])
 
+  // useEffect: build quiz prompt + choices when quiz starts
   useEffect(() => {
     if (phase !== 'quiz' || !selected) return
-    const target = Math.floor(Math.random() * 4)
-    setTimeout(() => setQuizTargetStep(target), 0)
-    const shuffled = [...selected.steps].sort(() => Math.random() - 0.5)
+    const maxIndex = selected.steps.length - 1
+    const target = Math.max(1, Math.floor(Math.random() * (maxIndex + 1)))
+    setTimeout(() => {
+      setQuizTargetStep(target)
+      setQuizPromptStep(target - 1)
+    }, 0)
+    const choices = selected.steps.filter((_, i) => i !== target - 1)
+    const shuffled = [...choices].sort(() => Math.random() - 0.5)
     setTimeout(() => setQuizChoices(shuffled), 0)
-    if (soundOn) speak(`Quiz. Tap the correct step`)
+    if (soundOn) speak(`Quiz. What comes after ${selected.steps[target - 1]}?`)
   }, [phase, selected, soundOn])
 
-  function startActivity(a: Activity) {
+  // start a skill from home
+  function startActivity(a) {
     setSelected(a)
     setPhase('tutorial')
   }
 
+  // go back to home page
   function backHome() {
     setSelected(null)
     setPhase('home')
   }
 
-  function onAnswer(choice: string) {
+  // check answer and give stars
+  function onAnswer(choice) {
     if (!selected) return
     const correct = selected.steps[quizTargetStep]
+    const isCorrect = choice === correct
     const timerBonus = timerSec === 0 ? 1 : 0
-    const quizBonus = choice === correct ? 1 : 0
+    const quizBonus = isCorrect ? 1 : 0
     const base = 3
     const earned = Math.max(1, Math.min(5, base + timerBonus + quizBonus))
     setStars(earned)
+    setLastAnswerCorrect(choice === '' ? null : isCorrect)
     setPhase('reward')
     const wk = weekKey
     setProgress((p) => {
@@ -199,18 +195,26 @@ export default function App() {
       next[wk][selected.key] = prev + earned
       return next
     })
-    if (soundOn) speak(`Great job. You earned ${earned} stars`)
+    if (soundOn) {
+      const feedback = choice === '' ? 'Skipping the quiz.' : isCorrect ? 'Correct.' : 'Not quite.'
+      speak(`${feedback} You earned ${earned} stars`)
+    }
   }
 
+  // reset values before trying again
   function resetFlow() {
     setTutorialStep(0)
     setTimerSec(45)
     setStars(0)
+    setLastAnswerCorrect(null)
     practiceStartedRef.current = false
   }
 
   const currentWeek = progress[weekKey] || {}
   const weekTotal = Object.values(currentWeek).reduce((a, b) => a + (b || 0), 0)
+  const practiceStep = selected
+    ? Math.min(3, Math.floor(((45 - timerSec) / 45) * 4))
+    : 0
 
   return (
     <div className="container">
@@ -231,27 +235,43 @@ export default function App() {
       </div>
 
       {phase === 'home' && (
-        <div className="grid">
-          {activities.map((a) => {
-            const starsThisWeek = currentWeek[a.key] || 0
-            return (
-              <div key={a.key} className="card" onClick={() => startActivity(a)}>
-                <div className="row" style={{ justifyContent: 'space-between' }}>
-                  <div className="title" style={{ fontSize: 18 }}>{a.title}</div>
-                  <div className="chip">★ {starsThisWeek}</div>
+        <div className="home">
+          <div className="instructions">
+            <div className="title" style={{ fontSize: 20 }}>How to use this</div>
+            <div className="subtitle" style={{ marginTop: 6 }}>
+              Instructions on how to use this and how it works:
+            </div>
+            <ol>
+              <li>Pick a skill card to start.</li>
+              <li>Watch the steps, practice for 45 seconds, then answer the quiz.</li>
+              <li>Earn stars and try again or choose another skill.</li>
+            </ol>
+            <div className="subtitle" style={{ marginTop: 6 }}>
+              Tip: Use the Sound button at the top to turn voice on or off.
+            </div>
+          </div>
+          <div className="grid">
+            {activities.map((a) => {
+              const starsThisWeek = currentWeek[a.key] || 0
+              return (
+                <div key={a.key} className="card" onClick={() => startActivity(a)}>
+                  <div className="row" style={{ justifyContent: 'space-between' }}>
+                    <div className="title" style={{ fontSize: 18 }}>{a.title}</div>
+                    <div className="chip">★ {starsThisWeek}</div>
+                  </div>
+                  <div className="subtitle" style={{ marginTop: 6 }}>{a.why}</div>
+                  <div className="space" />
+                  <div className="chips">
+                    {a.steps.map((s, i) => (
+                      <div key={i} className="chip" title={s}>{i + 1}</div>
+                    ))}
+                  </div>
+                  <div className="space" />
+                  <button className="btn">Start</button>
                 </div>
-                <div className="subtitle" style={{ marginTop: 6 }}>{a.why}</div>
-                <div className="space" />
-                <div className="chips">
-                  {a.steps.map((s, i) => (
-                    <div key={i} className="chip" title={s}>{i + 1}</div>
-                  ))}
-                </div>
-                <div className="space" />
-                <button className="btn">Start</button>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
       )}
 
@@ -299,6 +319,16 @@ export default function App() {
                   style={{ width: `${((45 - timerSec) / 45) * 100}%` }}
                 />
               </div>
+              {selected && (
+                <div className="steps" style={{ marginTop: 16 }}>
+                  {selected.steps.map((s, i) => (
+                    <div key={i} className={`step ${i === practiceStep ? 'active' : ''}`}>
+                      <div className="label">Step {i + 1}</div>
+                      <div style={{ fontSize: 18 }}>{s}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -309,7 +339,7 @@ export default function App() {
                 <button className="btn ghost" onClick={() => onAnswer('')}>Skip</button>
               </div>
               <div className="subtitle" style={{ marginBottom: 12 }}>
-                Tap the correct step {quizTargetStep + 1}
+                What comes after {selected.steps[quizPromptStep]}?
               </div>
               <div className="grid">
                 {quizChoices.map((c, i) => (
@@ -328,6 +358,11 @@ export default function App() {
                 <div className="title" style={{ fontSize: 20 }}>Reward</div>
                 <div className="subtitle">Earn 3+ to unlock next</div>
               </div>
+              {lastAnswerCorrect !== null && (
+                <div className="subtitle" style={{ marginBottom: 12 }}>
+                  {lastAnswerCorrect ? 'Correct!' : 'Not quite — try again.'}
+                </div>
+              )}
               <div className="confetti">
                 {confetti.map((p, i) => (
                   <div
